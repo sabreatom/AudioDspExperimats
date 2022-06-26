@@ -21,8 +21,12 @@ class MorphingOscillator:
         self.__config__["mix"][OscWfr.SINE] = 0.0
         self.__config__["detune"] = 0.0
         self.__config__["amplitude"] = 0.0
+        self.__config__["pm_is_enabled"] = False
+        self.__config__["pm_amplitude"] = 0.0
         
         self.current_step = 0.0
+
+        self.pm_signal_source_callback = None
 
     def getAngleStep(self):
         return (self.__config__["frequency"] + self.__config__["detune"]) * 2 * math.pi / self.__config__["sample_rate"]
@@ -73,6 +77,9 @@ class MorphingOscillator:
         if total_amplitude > 0.0:
             scale_value = self.__config__["amplitude"] / total_amplitude
 
+        if self.__config__["pm_is_enabled"]:
+            pm_signal = self.pm_signal_source_callback(buffer_size)
+
         #generate samples for buffer:
         for key in waveform_amplitudes:
             waveform_amplitudes[key] *= scale_value
@@ -93,7 +100,12 @@ class MorphingOscillator:
                 return None
 
             for i in range(buffer_size):
-                buffer[i] += sample_generator(waveform_amplitudes[key], self.current_step + i * self.getAngleStep())
+                if self.__config__["pm_is_enabled"]:
+                    phase = self.current_step + i * self.getAngleStep() + pm_signal[i] * self.__config__["pm_amplitude"]
+                else:
+                    phase = self.current_step + i * self.getAngleStep()
+
+                buffer[i] += sample_generator(waveform_amplitudes[key], phase)
 
         self.current_step += buffer_size * self.getAngleStep()
 
@@ -112,12 +124,28 @@ class MorphingOscillator:
     def setAmplitude(self, amplitude):
         self.__config__["amplitude"] = amplitude
 
+    def setPmState(self, isEnabled):
+        self.__config__["pm_is_enabled"] = isEnabled
+
+    def setPmCallback(self, callback):
+        self.pm_signal_source_callback = callback
+
+    def setPmAmplitude(self, amplitude):
+        self.__config__["pm_amplitude"] = amplitude
+
 
 if __name__== "__main__":
-    dut = MorphingOscillator(44100, 5)
-    dut.setWaveformMix(OscWfr.TRIANGLE, 0.5)
-    dut.setWaveformMix(OscWfr.SINE, 0.5)
+    lfo = MorphingOscillator(44100, 5)
+    lfo.setWaveformMix(OscWfr.SINE, 1.0)
+    lfo.setAmplitude(1.0)
+
+    dut = MorphingOscillator(44100, 50)
+    dut.setWaveformMix(OscWfr.SINE, 1.0)
     dut.setAmplitude(1.0)
+    dut.setPmCallback(lfo.generateWaveform)
+    dut.setPmAmplitude(math.pi / 2)
+    dut.setPmState(False)
+
     test = dut.generateWaveform(44100)
 
     plt.plot(test)
