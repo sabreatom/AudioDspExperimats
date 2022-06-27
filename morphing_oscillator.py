@@ -1,5 +1,4 @@
 import math
-import matplotlib.pyplot as plt
 from enum import Enum
 
 class OscWfr(str, Enum):
@@ -132,21 +131,3 @@ class MorphingOscillator:
 
     def setPmAmplitude(self, amplitude):
         self.__config__["pm_amplitude"] = amplitude
-
-
-if __name__== "__main__":
-    lfo = MorphingOscillator(44100, 5)
-    lfo.setWaveformMix(OscWfr.SINE, 1.0)
-    lfo.setAmplitude(1.0)
-
-    dut = MorphingOscillator(44100, 50)
-    dut.setWaveformMix(OscWfr.SINE, 1.0)
-    dut.setAmplitude(1.0)
-    dut.setPmCallback(lfo.generateWaveform)
-    dut.setPmAmplitude(math.pi / 2)
-    dut.setPmState(False)
-
-    test = dut.generateWaveform(44100)
-
-    plt.plot(test)
-    plt.show()
